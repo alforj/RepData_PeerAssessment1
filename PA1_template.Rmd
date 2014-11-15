@@ -175,7 +175,7 @@ hist(totalByDate.filled$totalSteps,xlab = "Total Number of Steps",
      main = "Total Number of Steps per Day (with Missing Values Imputed)")
 ```
 
-Comparing this histogram to the previous one, the shape of the graph has not fundamentally changes, but the scale of y-axis (frequency) has shifted slightly higher indicating that we have added steps to a number of the days to push them more towards the median value.
+Comparing this histogram to the previous one, the shape of the graph has not fundamentally changed, but the scale of y-axis (frequency) has shifted slightly higher indicating that we have added steps to a number of the days to push them more towards the median value.
 
 We also want to take a look at the new mean and median step values.
 
