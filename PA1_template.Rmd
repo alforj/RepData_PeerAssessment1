@@ -5,21 +5,225 @@ output:
     keep_md: true
 ---
 
+## Introduction
+
+It is now possible to collect a large amount of data about personal
+movement using activity monitoring devices such as a
+[Fitbit](http://www.fitbit.com), [Nike
+Fuelband](http://www.nike.com/us/en_us/c/nikeplus-fuelband), or
+[Jawbone Up](https://jawbone.com/up). These type of devices are part of
+the "quantified self" movement -- a group of enthusiasts who take
+measurements about themselves regularly to improve their health, to
+find patterns in their behavior, or because they are tech geeks. But
+these data remain under-utilized both because the raw data are hard to
+obtain and there is a lack of statistical methods and software for
+processing and interpreting the data.
+
+This report and analysis makes use of data from a personal activity monitoring
+device. This device collects data at 5 minute intervals through out the
+day. The data consists of two months of data from an anonymous
+individual collected during the months of October and November, 2012
+and include the number of steps taken in 5 minute intervals each day.
 
 ## Loading and preprocessing the data
+Several R packages will be required to perform analysis on this data. Load these libraries before beginning.
 
+```{r libaries, results= "hide", message = FALSE, warning = FALSE}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+```
 
+The dataset for this analysis makes use of data from a personal activity monitoring
+device. This device collects data at 5 minute intervals through out the
+day. The data consists of two months of data from an anonymous
+individual collected during the months of October and November, 2012
+and include the number of steps taken in 5 minute intervals each day.
+
+The data used for this analysis can be downloaded from the following site:
+
+* Dataset: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) [52K]
+
+The variables included in this dataset are:
+
+* **steps**: Number of steps taking in a 5-minute interval (missing
+    values are coded as `NA`)
+
+* **date**: The date on which the measurement was taken in YYYY-MM-DD
+    format
+
+* **interval**: Identifier for the 5-minute interval in which
+    measurement was taken
+    
+First, downland and unzip the dataset and load it into an object named "PA1".
+
+```{r loadData, results = "hide"}
+## Check to see if the zip file has already been downloaded to the working directory
+## if so, move on, if not, warn the user that the download is going to occur and execute
+    if(!file.exists("./activity.zip")){
+        print("Dataset not found. Downloading from internet. This may take a while.")
+        desturl<- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+        download.file(desturl,"./activity.zip")
+    }
+
+# Unzip the file and read the .csv into the PA1 object.
+unzip("./activity.zip")
+PA1 <- read.csv("./activity.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+The PA1 dataset looks like this:
+```{r showPA1Head}
+# Show reader first 5 rows to orient them.
+head(PA1)
+```
 
 ## What is mean total number of steps taken per day?
 
+The first piece of analysis we want to perform on this PA1 dataset is to determine the number of steps taken per day. A simple histogram of the total steps per day will help to orient us to the data. Note that there are several dates/intervals with missing steps data in the dataset. For the purposes of this analysis, we are simply ignoring these.
 
+```{r histDay, fig.height=4}
+# Create dataframe with total number of steps taken each day and plot histogram of the results
+totalByDate <- PA1 %>% ddply(.(date), summarize, totalSteps = sum(steps))
+hist(totalByDate$totalSteps,xlab = "Total Number of Steps",  
+     main = "Total Number of Steps per Day")
+```
+
+We also want to take a look at what the mean and median steps across all days to get a sense for whether any one day is atypical or not.
+
+``` {r mean.median.steps, results = "hide"}
+# Get the mean and median of the steps across days. Round to 2 digits.
+totalByDate.mean <- as.integer(mean(totalByDate$totalSteps, na.rm = TRUE))
+totalByDate.median <- as.integer(median(totalByDate$totalSteps, na.rm = TRUE))
+```
+
+The mean number of steps for a day is **`r totalByDate.mean`**. The median number of steps is **`r totalByDate.median`**.
 
 ## What is the average daily activity pattern?
 
+Above we reviewed what the steps totals for a typical day. Now we will look at what the number of steps looks like within a typical day to see if there are patterns around when the steps are taken (e.g., more towards the morning, the middle of the day, at night, etc.)
 
+Let's start by looking at the mean number of steps taken during each 5 minute time interval.
+
+```{r mean.steps.interval, fig.height=4}
+# Create a dataset that provides the mean steps by each 5 minute interval then plat the results
+meanByInterval <- PA1 %>% ddply(.(interval), summarize, meanSteps = mean(steps, na.rm = TRUE))
+plot(meanByInterval$interval, meanByInterval$meanSteps, type = "l", xlab = "Interval", ylab="Mean Number of Steps", main = "Mean Number of Steps by Interval across All Days")
+```
+
+It would also be nice to know in which interval the most steps are typically taken. We can do this by evalating which interval has the highest mean number of steps.
+
+```{r get.max.interval.mean, results = "hide"}
+maxIntervalSteps <- meanByInterval$interval[which.max(meanByInterval$meanSteps)]
+```
+
+According to this dataset, on average the most steps are taken during the **`r maxIntervalSteps`** interval.
 
 ## Imputing missing values
+As mentioned above, there are missing (NA) values for some of the dates/intervals in the original dataset. We want to see if we get a better picture of the overall average number of steps if we fill in those missing values with reasonable approximations of what they would be.
 
+For this exercise, we will get the mean number of steps for a given day (e.g., Monday, Tuesday, Wednesday) and interval (e.g., 5, 100, 255) and fill in any missing day/interval values with the mean for that day/interval. We can then re-run the analysis to see if the means or patterns show any change.
 
+First, we want to understand how many missing (NA) values we have in the dataset.
+
+```{r numMissingValues}
+length(which(is.na(PA1$steps)))
+```
+
+Next we need to get the mean number of steps for each weekday/interval so that we can use the results to fill in the missing step values for similar weekday/interval combinations. Once we know the mean steps for a weekday/interval, we can find all the missing values in the PA1 dataset and create a new dataset with those values filled in.
+
+```{r getDayIntervalMeans}
+# Create dataset of mean steps by weekday and interval (transform the date into a weekday value)
+meanByWeekdayInterval <- PA1 %>% ddply(.(weekdays(as.Date(date,format = "%Y-%m-%d")),interval),
+                                       summarize, meanSteps = mean(steps, na.rm = TRUE))
+colnames(meanByWeekdayInterval)[1] <- "Weekday" # rename column for easier referencing
+
+# Get the index for all the missing step values in the PA1 dataset
+PA1_NAs <- which(is.na(PA1$steps))
+
+# Create a copy of the PA1 dataset that will get the missing values filled in
+PA1_filled <-PA1
+
+# Loop through all the missing values in the new dataset and fill them in with the mean steps
+# where the day and interval match
+for( i in PA1_NAs)
+{
+        
+        na_weekday <- weekdays(as.Date(PA1$date[i],format = "%Y-%m-%d"))
+        na_interval <- PA1$interval[i]
+        mean_interval <- subset(meanByWeekdayInterval, 
+                                Weekday == na_weekday & interval == na_interval)
+        
+        # If there is a mean value for the weekday/interval combination, update the row with that value. Otherwise, set it to zero.
+        if (nrow(mean_interval) > 0) {
+                
+                PA1_filled$steps[i] <- as.integer(mean_interval$meanSteps)
+                
+        } else {
+                
+                PA1_filled$steps[i] <- 0
+        }
+}
+
+# Show new dataset to orient
+head(PA1_filled)
+```
+Now that we have a new dataset with the missing step values filled in, let's see if the histogram has changed.
+
+```{r histDay_filled, fig.height=4}
+totalByDate.filled <- PA1_filled %>% ddply(.(date), summarize, totalSteps = sum(steps))
+hist(totalByDate.filled$totalSteps,xlab = "Total Number of Steps",  
+     main = "Total Number of Steps per Day (with Missing Values Imputed)")
+```
+
+Comparing this histogram to the previous one, the shape of the graph has not fundamentally changes, but the scale of y-axis (frequency) has shifted slightly higher indicating that we have added steps to a number of the days to push them more towards the median value.
+
+We also want to take a look at the new mean and median step values.
+
+``` {r mean.median.steps.filled, results = "hide"}
+# Get the mean and median of the steps across days. Round to 2 digits.
+totalByDate.filled.mean <- as.integer(mean(totalByDate.filled$totalSteps, na.rm = TRUE))
+totalByDate.filled.median <- as.integer(median(totalByDate.filled$totalSteps, na.rm = TRUE))
+```
+
+The mean number of steps once we fill in the missing values is now **`r totalByDate.filled.mean`**. If we compare that mean value to the previous mean value, we see the mean has gone up by **`r totalByDate.filled.mean - totalByDate.mean`** steps.
+
+The new median number of steps is **`r totalByDate.filled.median`**. If we compare that median value to the previous median value, we the new median has gone up by **`r totalByDate.filled.median - totalByDate.median`** steps.
+
+As both the new histogram and new mean and median values show, by inputing missing values, we have increased the total, mean, and median number of steps and have likely provided a more accurate representation of the actual steps taken.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+One interesting behavior aspect to review is whether the number of steps taken differs during the week compared to on the weekends. To analyze this, we will classify each date in the dataset as either a "weekday" date (i.e., Monday through Friday) or as a "weekend" date (i.e., Saturday or Sunday). Then we can look at and compare the steps taken on weekdays vs. weekends.
+
+First we need to create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r createWeekdayFactor}
+# Create new variable DayType to hold the "weekend" and "weekday" factor values
+# Fill in that variable based on whether the weekdays(date) value is a weekend or weekday
+PA1_filled$DayType[weekdays(as.Date(PA1_filled$date,format = "%Y-%m-%d")) 
+                %in% c("Saturday", "Sunday")] <- "weekend"
+
+PA1_filled$DayType[!weekdays(as.Date(PA1_filled$date,format = "%Y-%m-%d")) 
+                   %in% c("Saturday", "Sunday")] <- "weekday"
+
+# Convert the DayType variable to a factor
+PA1_filled$DayType <- as.factor(PA1_filled$DayType)
+
+# Show new dataset format
+head(PA1_filled)
+```
+
+Once we have the new dataset with the weekday/weekend factor variable, let's make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r weekdayHist}
+# Create new dataset with mean steps by interval and DayTypue
+meanByInterval_filled <- PA1_filled %>% ddply(.(interval, DayType), 
+                                              summarize, 
+                                              meanSteps = mean(steps, na.rm = TRUE))
+
+p <- ggplot(meanByInterval_filled, aes(interval, meanSteps)) + geom_line()
+p <- p + facet_wrap(~ DayType, ncol = 1)
+p <- p + xlab("Intervals") + ylab("Average Number of Steps")
+p
+```
+
+The two graphs above show a marked shift to the right on the weekends for when the mean number of steps start in the morning and when they end at night (perhaps waking and going to bed later on weekends than weekdays). There is also a noticable change in the variablity of the steps throughout the day on the weekends then there is during weekdays. This could be due to higher levels of activity and less stationary environments on weekends whereas the individual may be in a more stationary, work environment (e.g., a desk) during the weekdays.
