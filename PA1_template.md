@@ -1,4 +1,9 @@
-# Reproducible Research: Peer Assessment 1
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
 
 ## Introduction
 
@@ -97,7 +102,7 @@ hist(totalByDate$totalSteps,xlab = "Total Number of Steps",
      main = "Total Number of Steps per Day")
 ```
 
-![](./PA1_template_files/figure-html/histDay-1.png) 
+![plot of chunk histDay](figure/histDay-1.png) 
 
 We also want to take a look at what the mean and median steps across all days to get a sense for whether any one day is atypical or not.
 
@@ -123,7 +128,7 @@ meanByInterval <- PA1 %>% ddply(.(interval), summarize, meanSteps = mean(steps, 
 plot(meanByInterval$interval, meanByInterval$meanSteps, type = "l", xlab = "Interval", ylab="Mean Number of Steps", main = "Mean Number of Steps by Interval across All Days")
 ```
 
-![](./PA1_template_files/figure-html/mean.steps.interval-1.png) 
+![plot of chunk mean.steps.interval](figure/mean.steps.interval-1.png) 
 
 It would also be nice to know in which interval the most steps are typically taken. We can do this by evalating which interval has the highest mean number of steps.
 
@@ -208,7 +213,7 @@ hist(totalByDate.filled$totalSteps,xlab = "Total Number of Steps",
      main = "Total Number of Steps per Day (with Missing Values Imputed)")
 ```
 
-![](./PA1_template_files/figure-html/histDay_filled-1.png) 
+![plot of chunk histDay_filled](figure/histDay_filled-1.png) 
 
 Comparing this histogram to the previous one, the shape of the graph has not fundamentally changed, but the scale of y-axis (frequency) has shifted slightly higher indicating that we have added steps to a number of the days to push them more towards the median value.
 
@@ -274,6 +279,6 @@ p <- p + xlab("Intervals") + ylab("Average Number of Steps")
 p
 ```
 
-![](./PA1_template_files/figure-html/weekdayHist-1.png) 
+![plot of chunk weekdayHist](figure/weekdayHist-1.png) 
 
 The two graphs above show a marked shift to the right on the weekends for when the mean number of steps start in the morning and when they end at night (perhaps waking and going to bed later on weekends than weekdays). There is also a noticable change in the variablity of the steps throughout the day on the weekends then there is during weekdays. This could be due to higher levels of activity and less stationary environments on weekends whereas the individual may be in a more stationary, work environment (e.g., a desk) during the weekdays.
